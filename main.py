@@ -1,5 +1,6 @@
 import pygame as pg
-import timer, easing, figure
+import timer as t
+import figure,easing
 
 class Window:
     """
@@ -13,17 +14,16 @@ class Window:
 
         self.scale = None
         self.game_rect = None
-        self.update_scale()
 
         self.window = pg.display.set_mode(self.window_dims)
         self.mode = None
-
-        self.windowed()
 
         self.fps = 60
         self.clock = pg.time.Clock()
         self.dt = None
 
+        self.update_scale()
+        self.windowed()
         self.update()
     
     def update_scale(self):
@@ -55,7 +55,7 @@ class Window:
         """
         sets the display to a resizeable window
         """
-        self.window = pg.diplay.set_mode(self.window_dims,pg.RESIZABLE)
+        self.window = pg.display.set_mode(self.window_dims,pg.RESIZABLE)
         self.mode = "windowed"
 
         self.update_scale()
@@ -86,8 +86,22 @@ class Window:
         self.window.fill(V3(0,0,0))
 
 class Events:
+    "class that manages inputs"
     def __init__(self) -> None:
         self.pressed_keys = []
+        self.key_map = {"up":["w","up arrow"],
+                        "down":["s","down arrow"],
+                        "left":["a","left arrow"],
+                        "right":["d","right arrow"],
+                        "rotate_clock":["w","up arrow"],
+                        "rotate_anti_clock":["z",
+                                             "right control",
+                                             "left control"],
+                        "hard_drop":["space"],
+                        "hold_block":["c",
+                                      "right shift",
+                                      "left shift"],
+                        "pause":["escape"]}
     
     def update(self):
         for event in pg.event.get():
@@ -96,29 +110,43 @@ class Events:
                 exit()
 
             if event.type == pg.KEYDOWN:
-                if event.key not in self.pressed_keys:
-                    self.pressed_keys.append(event.key.name())
+                key = pg.key.name(event.key)
+                if key not in self.pressed_keys:
+                    self.pressed_keys.append(key)
 
             if event.type == pg.KEYUP:
-                if event.key in self.pressed_keys:
-                    self.pressed_keys.remove(event.key.name())
-        
-        print(self.pressed_keys)
+                key = pg.key.name(event.key)
+                if key in self.pressed_keys:
+                    self.pressed_keys.remove(key)
             
+            if event.type == pg.VIDEORESIZE and window.mode == "windowed":
+                window.update_scale()
+    
+    def key_event(self,key_map_id):
+        """
+        check if keys in keymap are pressed based on id
+        """
+        key_pressed = True
+
+        for key in self.key_map[key_map_id]:
+            if key in self.pressed_keys:
+                key_pressed = False
+        
+        return key_pressed
 
 pg.init()
-
 
 V = pg.Vector2
 V3 = pg.Vector3
 
 window = Window()
 events = Events()
-time = timer.Timers()
+timer = t.Timers()
 
 while True:
     window.update()
     events.update()
+    timer.update()
     
 
 
