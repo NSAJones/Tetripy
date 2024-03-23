@@ -37,6 +37,20 @@ class Window:
         self.game_rect = pg.Rect(V(0),self.game_dims*self.scale)
         self.game_rect.center = V(self.window.get_rect().size) / 2
     
+    def scale_rect(self,rect,in_game_rect=True):
+        """
+        - scales a rect using scale attribute,
+        - if in_game_rect is true offsets it using game_rect attribute
+        """
+        scaled_rect = pg.Rect(V(rect.topleft)*self.scale,
+                              V(rect.size)*self.scale)
+        
+        if in_game_rect:
+            scaled_rect.topleft = (scaled_rect.topleft + 
+                                self.game_rect.topleft)
+        
+        return scaled_rect
+    
     def windowed(self):
         """
         sets the display to a resizeable window
@@ -76,10 +90,10 @@ pg.init()
 V = pg.Vector2
 V3 = pg.Vector3
 
-W = Window()
+window = Window()
 
 while True:
-    W.update()
+    window.update()
     
 
 

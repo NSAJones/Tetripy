@@ -38,11 +38,8 @@ class Timer:
     
     def val(self):
         lerp_perc = self.end_time/self.passed_time
-        return self.lerp(self.easing_func(lerp_perc),
+        return easing.lerp(self.easing_func(lerp_perc),
                     self.val1,
                     self.val2
                     )
     
-    @staticmethod
-    def lerp(perc,val1,val2):
-        return val1+(perc*(val1-val2))

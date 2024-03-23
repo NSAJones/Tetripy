@@ -1,5 +1,8 @@
-#easing functions for use with lerp
 
+def lerp(perc,val1,val2):
+        return val1+(perc*(val1-val2))
+
+#easing functions for use with lerp
 def ease_in_cubic(x):
     return x**3
 
