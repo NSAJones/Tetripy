@@ -1,6 +1,7 @@
 import pygame as pg
 import timer, easing
 
+#test
 class Window:
     """
     Class that manages window resizing, scale and clock dt
