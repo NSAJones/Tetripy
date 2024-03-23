@@ -1,7 +1,6 @@
 import pygame as pg
-import timer, easing
+import timer, easing, figure
 
-#test
 class Window:
     """
     Class that manages window resizing, scale and clock dt
@@ -65,7 +64,8 @@ class Window:
         """
         sets the display to fullscreen
         """
-        self.window = pg.display.set_mode(self.fullscreen_dims,pg.FULLSCREEN)
+        self.window = pg.display.set_mode(self.fullscreen_dims,
+                                          pg.FULLSCREEN)
         self.mode = "fullscreen"
 
         self.update_scale()
@@ -85,6 +85,27 @@ class Window:
 
         self.window.fill(V3(0,0,0))
 
+class Events:
+    def __init__(self) -> None:
+        self.pressed_keys = []
+    
+    def update(self):
+        for event in pg.event.get():
+
+            if event.type == pg.QUIT:
+                exit()
+
+            if event.type == pg.KEYDOWN:
+                if event.key not in self.pressed_keys:
+                    self.pressed_keys.append(event.key.name())
+
+            if event.type == pg.KEYUP:
+                if event.key in self.pressed_keys:
+                    self.pressed_keys.remove(event.key.name())
+        
+        print(self.pressed_keys)
+            
+
 pg.init()
 
 
@@ -92,9 +113,12 @@ V = pg.Vector2
 V3 = pg.Vector3
 
 window = Window()
+events = Events()
+time = timer.Timers()
 
 while True:
     window.update()
+    events.update()
     
 
 
