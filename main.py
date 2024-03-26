@@ -1,16 +1,19 @@
+#The main file where everything is run
+
 import pygame as pg
 import timer as t
-import figure,easing
+import figure,easing,sprites
 
+V = pg.Vector2
+V3 = pg.Vector3
 class Window:
-    """
-    Class that manages window resizing, scale and clock dt
-    """
+    #Class that manages window resizing, scale and clock dt
+
     def __init__(self) -> None:
         
         self.window_dims = V(640,360)
         self.fullscreen_dims = pg.display.list_modes()[0]
-        self.game_dims = V(320,180)
+        self.game_dims = V(100,100)
 
         self.scale = None
         self.game_rect = None
@@ -28,65 +31,81 @@ class Window:
     
     def update_scale(self):
         """
-        updates the scale and game_rect attributes based on the size
+        Updates the scale and game_rect attributes based on the size
         of the window, use after changing the size of the display
         """
-        self.scale = min(self.window_dims[0]/self.game_dims[0],
-                         self.window_dims[1]/self.game_dims[1])
+
+        window_surf_size = self.window.get_size()
+
+        self.scale = min(window_surf_size[0]//self.game_dims[0],
+                         window_surf_size[1]//self.game_dims[1])
+        
         
         self.game_rect = pg.Rect(V(0),self.game_dims*self.scale)
         self.game_rect.center = V(self.window.get_rect().size) / 2
     
     def scale_rect(self,rect,in_game_rect=True):
         """
-        - scales a rect using scale attribute,
-        - if in_game_rect is true offsets it using game_rect attribute
+        - Scales a rect using scale attribute,
+        - If in_game_rect is true offsets it using game_rect attribute
         """
-        scaled_rect = pg.Rect(V(rect.topleft)*self.scale,
-                              V(rect.size)*self.scale)
+
+        topleft = V(rect.topleft)
+
+        rect.scale_by_ip(self.scale)
         
+        rect.topleft = topleft * self.scale
+
         if in_game_rect:
-            scaled_rect.topleft = (scaled_rect.topleft + 
-                                self.game_rect.topleft)
-        
-        return scaled_rect
+            rect.topleft = (rect.topleft + 
+                                V(self.game_rect.topleft))
+
+        return rect
     
     def windowed(self):
-        """
-        sets the display to a resizeable window
-        """
+        #Sets the display to a resizeable window
+
+
         self.window = pg.display.set_mode(self.window_dims,pg.RESIZABLE)
         self.mode = "windowed"
 
         self.update_scale()
     
     def fullscreen(self):
-        """
-        sets the display to fullscreen
-        """
+        #Sets the display to fullscreen
+
         self.window = pg.display.set_mode(self.fullscreen_dims,
                                           pg.FULLSCREEN)
         self.mode = "fullscreen"
 
         self.update_scale()
 
-    def blit(self,source,dest,special_flags=0):
+    def blit(self,surf,dest,offset=V(0,0),scale_rect=True,special_flags=0):
         """
-        shorthand for drawing to the window
+        Shorthand for drawing to the window, also scaled to draw to
+        the window
+
         """
-        self.window.blit(source,dest,special_flags)
+
+        surf = pg.transform.scale_by(surf,self.scale)
+        if scale_rect:
+            dest = self.scale_rect(dest)
+
+        self.window.blit(surf,dest,None,special_flags)
     
     def update(self):
-        """
-        updates dt and flips display as well as drawing a background
-        """
+        #Updates dt and flips display as well as drawing a background
+
         self.dt = self.clock.tick(self.fps)
         pg.display.flip()
 
         self.window.fill(V3(0,0,0))
+        self.window.fill(V3(0,0,200),self.game_rect)
+
 
 class Events:
-    "class that manages inputs"
+    #Class that manages inputs
+
     def __init__(self) -> None:
         self.pressed_keys = []
         self.key_map = {"up":["w","up arrow"],
@@ -123,9 +142,8 @@ class Events:
                 window.update_scale()
     
     def key_event(self,key_map_id):
-        """
-        check if keys in keymap are pressed based on id
-        """
+        #Check if keys in keymap are pressed based on id
+
         key_pressed = True
 
         for key in self.key_map[key_map_id]:
@@ -136,17 +154,29 @@ class Events:
 
 pg.init()
 
-V = pg.Vector2
-V3 = pg.Vector3
-
 window = Window()
 events = Events()
 timer = t.Timers()
 
+fonts = sprites.Fonts()
+
+square = pg.Surface((50,50))
+square.fill(V3(0,200,200))
+
 while True:
     window.update()
     events.update()
-    timer.update()
+    timer.update(window.dt)
+
+    #window.blit(square,pg.Rect(V(5,5),V(30,30)))
+
+    fonts.draw_font(" !\"#$%&'()*+,-./0123456789:;<=>?"+
+                      r"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_"+
+                      "`abcdefghijklmnopqrstuvwxyz{}~",
+                      pg.Rect(V(3,3),V(70,50)),
+                      window)
+
+    
     
 
 

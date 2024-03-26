@@ -1,9 +1,10 @@
+#This file has timer classes which perform interpolation
+
 import easing
 
 class Timers:
-    """
-    Class that manages interpolation of values using Timer objects
-    """
+    #Class that manages interpolation of values using Timer objects
+
     def __init__(self) -> None:
         self.timers = {}
 

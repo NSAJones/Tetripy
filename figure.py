@@ -1,10 +1,13 @@
+#This module has classes for tetriminos
+
 import pygame
 
 pygame.init()
 
 V = pygame.Vector2
 
-#tetrimino data based off the SRS - https://tetris.fandom.com/wiki/SRS
+#Tetrimino data based off the SRS - https://tetris.fandom.com/wiki/SRS
+
 BASE_MINO_DATA = {
     "I":[V(0,1),V(1,1),V(2,1),V(3,1)],
     "J":[V(0,0),V(0,1),V(1,1),V(2,1)],
@@ -15,8 +18,9 @@ BASE_MINO_DATA = {
     "Z":[V(0,0),V(1,0),V(1,1),V(2,1)],
 }
 
-#create tetrimino rotation data
+#Create tetrimino rotation data
 #(to avoid having to write it out lol)
+
 ROT_MINO_DATA = {
     "I":[[V(0,1),V(1,1),V(2,1),V(3,1)]],
     "J":[[V(0,0),V(0,1),V(1,1),V(2,1)]],
@@ -36,7 +40,8 @@ for (mino,data) in BASE_MINO_DATA.items():
     elif mino == "I":
         center = V(1.5,1.5)
 
-    #rotates each vector around center value 3 times, excluding O
+    #Rotates each vector around center value 3 times, excluding O
+        
     for _ in range(3):
         if mino != "O":
             for i in range(4):
@@ -46,7 +51,8 @@ for (mino,data) in BASE_MINO_DATA.items():
 
         ROT_MINO_DATA[mino].append(list(rot_data))
 
-#prints out tetrimino rotation data to console, for testing only
+#Prints out tetrimino rotation data to console, for testing only
+        
 def print_rot():
     mino_str = None
     for (mino,rot_data) in ROT_MINO_DATA.items():
@@ -69,10 +75,10 @@ def print_rot():
                 print(mino_str)
             print()
 
-print_rot()
 
 class Figure:
     """Class that houses tetrimino functionality"""
+
     def __init__(self,type,pos) -> None:
         """
         - Pick any of the following for type parameter
