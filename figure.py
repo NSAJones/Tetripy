@@ -76,10 +76,11 @@ def print_rot():
             print()
 
 
+
 class Figure:
     """Class that houses tetrimino functionality"""
 
-    def __init__(self,type,pos) -> None:
+    def __init__(self,type,pos,styles) -> None:
         """
         - Pick any of the following for type parameter
         : I, J, L, O, S, T, Z
@@ -89,10 +90,34 @@ class Figure:
         self.rotation = 0
 
         self.pos = pos
+        self.block_list = []
 
-    def update(self,dt):
+        block_imgs = styles.get_blocks(type)
+        for (i,v) in enumerate(block_imgs):
+            newpos = V(self.pos)+self.figure_rot_data[0][i]
+            self.block_list.append(Block(v,newpos,styles.get_rotation()))
+
+    def update(self,dt,window,sprites):
         pass
 
+    def update_block_pos(self):
+        for (i,v) in enumerate(self.figure_rot_data[self.rotation]):
+            self.block_list[i].pos = v+self.pos
+
+
+
+class Block:
+    """Class that holds sprite data for each block of tetriminos"""
+
+    def __init__(self,sprite_name,pos,rotation=False) -> None:
+        self.pos = pos
+        self.sprite_name = sprite_name
+        self.dimensions = V(16,16)
+        self.rotation = rotation
+
+    def update(self,window,sprites):
+        window.blit(sprites.sprites[self.sprite_name])
         
+
         
 

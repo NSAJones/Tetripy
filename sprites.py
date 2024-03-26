@@ -1,7 +1,9 @@
 #This file contains classes that manage sprites
 
 import os
+import configparser
 import pygame as pg
+from random import shuffle
 
 V = pg.Vector2
 
@@ -124,6 +126,152 @@ class Fonts:
             
             if len(word_list) != 1 and word[-1:] != "-":
                 sdraw_pos = draw_pos + V(self.char_dims[0],0)
+
+
+
+
+class Sprites:
+    #Stores sprites so they can be reused
+
+    def __init__(self) -> None:
+        self.sprites = {}
+        self.split_sprites = {}
+
+    def get_sprite(self,path,name):
+        #Fetches image at path, if it is already in self.sprites,
+        #reuse it
+
+        if path in self.sprites.keys():
+            return self.sprites[name]
+        else:
+            self.sprites[name] = pg.Surface(path)
+            return self.sprites[name]
+    
+    def split_spritesheet(self,name,dims):
+        #Split a spritesheet by name, if it is already in
+        #self.split_sprites, reuse it
+        #The split images are put into self.sprites with the affix
+        #sprite_1, sprite_2, sprite_3, ...
+
+        split_sprites = []
+
+        if name in self.split_sprites.keys():
+            
+            for s in self.split_sprites[name]:
+                split_sprites.append(s)
+            
+        else:
+            split_sprites = split_spritesheet(self.sprites[name])
+            for (i,v) in split_sprites:
+                self.sprites[f"{name}_{i}"] = v
+            
+        return split_sprites
+
+
+class Styles:
+    #Manages different tilesets for the tetriminos to pick from
+
+    def __init__(self,sprites) -> None:
+        #Get all tetris styles using cfg files
+
+        self.style_list = {}
+        self.current_style = "Cracked Tiles"
+
+        cfg_file = None
+        for f in os.listdir("sprites/styles"):
+            cfg_file = os.path.join(f,"style.cfg")
+            style = Style(cfg_file,sprites)
+            self.style_list[style.name] = style
+
+    def get_blocks(self,letter):
+        #get a list of 4 sprite names for a tetrimino from a style
+
+        style = self.style_list[self.current_style]
+        sprites = []
+
+        if style in ["separate","separate_c"]:
+            variants = None
+
+            if style == "separate_c":
+                variants = list(style.variants[letter])
+            elif style == "separate":
+                keys = style.variants.keys()
+                shuffle(keys)
+                
+                variants = list(style.variants[keys[0]])
+
+            for i in range(4):
+                shuffle(variants)
+                sprites.append(variants[0])
+    
+    def get_rotation(self):
+        return self.style_list[self.current_style].rotation
+
+
+
+class Style:
+    def __init__(self,cfg_file,sprites) -> None:
+        #this class fetches and stores data from cfg files
+
+        """
+        There are 4 different styles types:
+        * separate - tetriminos pick a random tile from img files each
+          time, tiles are not joined
+        * separate_c - there is a tile for every type of tetrimino
+          which is picked every time, tiles are not joined
+        * joined - tiles are joined and there is a specific image for 
+          each tetrimino
+        * tileset - tetriminos pick a random tile, uses a tileset to
+          support all possible tetriminos
+        """
+
+        """
+        There are 3 different animation types:
+        * none - no animation
+        * 
+        """
+
+        style_path = cfg_file.replace("style.cfg","")
+
+        config = configparser.ConfigParser()
+        config.read(cfg_file)
+
+        self.name = config["Style"]["name"]
+        self.creator = config["Style"]["creator"]
+        self.style = config["Style"]["style"]
+        self.images = config["Style"]["images"].split(",")
+        self.rotation = bool(config["Style"]["rotation"])
+
+        #each type has a 2d list for variants, then animations
+        self.variants = {}
+
+        for img_name in self.images:
+            self.variants[img_name] = []
+
+            location = os.path.join(style_path,img_name)
+            spritesheet_name = f"{self.name}_{img_name[:-4]}"
+            sprites.get_sprite(style_path,spritesheet_name)
+
+            dims = V(sprites.sprites[spritesheet_name].size()[0],16)
+            var_list = sprites.split_spritesheet(spritesheet_name,dims)
+
+            for var in var_list:
+                self.variants[img_name[:-4]][var] = sprites.split_spritesheet(var,V(16,16))
+            
+            
+
+
+            
+
+
+
+
+            
+        
+
+
+
+    
             
 
 
