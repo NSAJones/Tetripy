@@ -1,10 +1,10 @@
 #This module has classes for tetriminos
 
-import pygame
+import pygame as pg
 
-pygame.init()
+pg.init()
 
-V = pygame.Vector2
+V = pg.Vector2
 
 #Tetrimino data based off the SRS - https://tetris.fandom.com/wiki/SRS
 
@@ -97,12 +97,13 @@ class Figure:
             newpos = V(self.pos)+self.figure_rot_data[0][i]
             self.block_list.append(Block(v,newpos,styles.get_rotation()))
 
-    def update(self,dt,window,sprites):
-        pass
+    def update(self,dt,window,sprites,offset=V(0,0)):
+        for block in self.block_list:
+            block.update(window,sprites,offset)
 
     def update_block_pos(self):
         for (i,v) in enumerate(self.figure_rot_data[self.rotation]):
-            self.block_list[i].pos = v+self.pos
+            self.block_list[i].pos = v + self.pos
 
 
 
@@ -115,8 +116,10 @@ class Block:
         self.dimensions = V(16,16)
         self.rotation = rotation
 
-    def update(self,window,sprites):
-        window.blit(sprites.sprites[self.sprite_name])
+    def update(self,window,sprites,offset):
+        pos_rect = pg.Rect((V(self.pos)*self.dimensions[0])+offset,self.dimensions)
+        window.blit(sprites.sprites[self.sprite_name],pos_rect)
+
         
 
         

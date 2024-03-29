@@ -2,7 +2,8 @@
 
 import pygame as pg
 import timer as t
-import figure,easing,sprites
+import sprites as s
+import figure,easing
 
 V = pg.Vector2
 V3 = pg.Vector3
@@ -40,9 +41,8 @@ class Window:
         self.scale = min(window_surf_size[0]//self.game_dims[0],
                          window_surf_size[1]//self.game_dims[1])
         
-        
-        self.game_rect = pg.Rect(V(0),self.game_dims*self.scale)
-        self.game_rect.center = V(self.window.get_rect().size) / 2
+        self.game_rect = pg.Rect(V(0),self.game_dims * self.scale)
+        self.game_rect.center = self.window.get_rect().center
     
     def scale_rect(self,rect,in_game_rect=True):
         """
@@ -52,13 +52,13 @@ class Window:
 
         topleft = V(rect.topleft)
 
-        rect.scale_by_ip(self.scale)
+        rect.scale_by(self.scale)
         
         rect.topleft = topleft * self.scale
 
         if in_game_rect:
             rect.topleft = (rect.topleft + 
-                                V(self.game_rect.topleft))
+                            V(self.game_rect.topleft))
 
         return rect
     
@@ -107,6 +107,8 @@ class Events:
     #Class that manages inputs
 
     def __init__(self) -> None:
+        self.held_keys = []
+        self.held_keys_time = {}
         self.pressed_keys = []
         self.key_map = {"up":["w","up arrow"],
                         "down":["s","down arrow"],
@@ -122,7 +124,9 @@ class Events:
                                       "left shift"],
                         "pause":["escape"]}
     
-    def update(self):
+    def update(self,dt):
+        self.pressed_keys = []
+
         for event in pg.event.get():
 
             if event.type == pg.QUIT:
@@ -130,27 +134,45 @@ class Events:
 
             if event.type == pg.KEYDOWN:
                 key = pg.key.name(event.key)
-                if key not in self.pressed_keys:
-                    self.pressed_keys.append(key)
+                if key not in self.held_keys:
+                    self.held_keys.append(key)
+                    self.held_keys_time[key] = 0
+                else:
+                    self.held_keys_time[key] += dt
+                
+                self.pressed_keys.append(key)
 
             if event.type == pg.KEYUP:
                 key = pg.key.name(event.key)
-                if key in self.pressed_keys:
-                    self.pressed_keys.remove(key)
+                if key in self.held_keys:
+                    self.held_keys.remove(key)
+                    del self.held_keys_time[key]
             
             if event.type == pg.VIDEORESIZE and window.mode == "windowed":
                 window.update_scale()
     
-    def key_event(self,key_map_id):
+    def key_held(self,key_map_id):
         #Check if keys in keymap are pressed based on id
 
-        key_pressed = True
+        key_held = False
+
+        for key in self.key_map[key_map_id]:
+            if key in self.held_keys:
+                key_held = True
+        
+        return key_held
+    
+    def key_pressed(self,key_map_id):
+        #Check if keys in keymap are pressed based on id
+
+        key_pressed = False
 
         for key in self.key_map[key_map_id]:
             if key in self.pressed_keys:
-                key_pressed = False
+                key_pressed = True
         
         return key_pressed
+
 
 pg.init()
 
@@ -158,23 +180,30 @@ window = Window()
 events = Events()
 timer = t.Timers()
 
-fonts = sprites.Fonts()
+sprites = s.Sprites()
+styles = s.Styles(sprites)
+fonts = s.Fonts()
 
-square = pg.Surface((50,50))
-square.fill(V3(0,200,200))
+
+letters = ["I","O","J","L","S","Z","T"]
+test_figure = figure.Figure("I",(1,1),styles)
 
 while True:
     window.update()
-    events.update()
+    events.update(window.dt)
     timer.update(window.dt)
 
-    #window.blit(square,pg.Rect(V(5,5),V(30,30)))
-
-    fonts.draw_font(" !\"#$%&'()*+,-./0123456789:;<=>?"+
-                      r"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_"+
-                      "`abcdefghijklmnopqrstuvwxyz{}~",
-                      pg.Rect(V(3,3),V(70,50)),
+    fonts.draw_font("stuff and things",
+                      pg.Rect(V(0,0),V(70,50)),
                       window)
+
+    test_figure.update(window.dt,window,sprites)
+
+    if events.key_pressed("hard_drop"):
+        letters.append(letters.pop(0))
+        test_figure = figure.Figure(letters[0],(1,1),styles)
+
+
 
     
     

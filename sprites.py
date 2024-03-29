@@ -125,7 +125,7 @@ class Fonts:
                 draw_pos = draw_pos + V(self.char_dims[0],0)
             
             if len(word_list) != 1 and word[-1:] != "-":
-                sdraw_pos = draw_pos + V(self.char_dims[0],0)
+                draw_pos = draw_pos + V(self.char_dims[0],0)
 
 
 
@@ -144,7 +144,7 @@ class Sprites:
         if path in self.sprites.keys():
             return self.sprites[name]
         else:
-            self.sprites[name] = pg.Surface(path)
+            self.sprites[name] = pg.image.load(path)
             return self.sprites[name]
     
     def split_spritesheet(self,name,dims):
@@ -161,9 +161,11 @@ class Sprites:
                 split_sprites.append(s)
             
         else:
-            split_sprites = split_spritesheet(self.sprites[name])
-            for (i,v) in split_sprites:
-                self.sprites[f"{name}_{i}"] = v
+            split_sprites_imgs = split_spritesheet(self.sprites[name],dims)
+            for (i,v) in enumerate(split_sprites_imgs):
+                child_name = f"{name}_{i}"
+                self.sprites[child_name] = v
+                split_sprites.append(child_name)
             
         return split_sprites
 
@@ -179,7 +181,7 @@ class Styles:
 
         cfg_file = None
         for f in os.listdir("sprites/styles"):
-            cfg_file = os.path.join(f,"style.cfg")
+            cfg_file = os.path.join("sprites","styles",f,"style.cfg")
             style = Style(cfg_file,sprites)
             self.style_list[style.name] = style
 
@@ -189,12 +191,12 @@ class Styles:
         style = self.style_list[self.current_style]
         sprites = []
 
-        if style in ["separate","separate_c"]:
+        if style.type in ["separate","separate_c"]:
             variants = None
 
-            if style == "separate_c":
+            if style.type == "separate_c":
                 variants = list(style.variants[letter])
-            elif style == "separate":
+            elif style.type == "separate":
                 keys = style.variants.keys()
                 shuffle(keys)
                 
@@ -203,6 +205,8 @@ class Styles:
             for i in range(4):
                 shuffle(variants)
                 sprites.append(variants[0])
+        
+        return sprites
     
     def get_rotation(self):
         return self.style_list[self.current_style].rotation
@@ -238,7 +242,7 @@ class Style:
 
         self.name = config["Style"]["name"]
         self.creator = config["Style"]["creator"]
-        self.style = config["Style"]["style"]
+        self.type = config["Style"]["type"]
         self.images = config["Style"]["images"].split(",")
         self.rotation = bool(config["Style"]["rotation"])
 
@@ -246,13 +250,13 @@ class Style:
         self.variants = {}
 
         for img_name in self.images:
-            self.variants[img_name] = []
+            self.variants[img_name[:-4]] = {}
 
             location = os.path.join(style_path,img_name)
             spritesheet_name = f"{self.name}_{img_name[:-4]}"
-            sprites.get_sprite(style_path,spritesheet_name)
+            sprites.get_sprite(location,spritesheet_name)
 
-            dims = V(sprites.sprites[spritesheet_name].size()[0],16)
+            dims = V(sprites.sprites[spritesheet_name].get_size()[0],16)
             var_list = sprites.split_spritesheet(spritesheet_name,dims)
 
             for var in var_list:
