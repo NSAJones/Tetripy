@@ -75,6 +75,34 @@ def print_rot():
                 print(mino_str)
             print()
 
+neg_func = lambda vect: vect*-1
+
+WALLKICK_DATA = {
+    "0>1":[V(-1,0),V(-1,1),V(0,-2),V(-1,-2)],
+    "1>2":[V(1,0),V(1,-1),V(0,2),V(1,2)],
+    "2>3":[V(1,0),V(1,1),V(0,-2),V(1,-2)],
+    "3>0":[V(-1,0),V(-1,-1),V(0,2),V(-1,2)],
+
+    "1>0":map(neg_func,[V(-1,0),V(-1,1),V(0,-2),V(-1,-2)]),
+    "2>1":map(neg_func,[V(1,0),V(1,-1),V(0,2),V(1,2)]),
+    "3>2":map(neg_func,[V(1,0),V(1,1),V(0,-2),V(1,-2)]),
+    "0>3":map(neg_func,[V(-1,0),V(-1,-1),V(0,2),V(-1,2)])
+}
+
+WALLKICK_DATA_I = {
+    "0>1":[V(-2,0),V(1,0),V(-2,-1),V(1,2)],
+    "1>0":[V(2,0),V(-1,0),V(2,1),V(-1,-2)],
+
+    "1>2":[V(-1,0),V(2,0),V(-1,2),V(2,-1)],
+    "2>1":[V(1,0),V(-2,0),V(1,-2),V(-2,1)],
+
+    "2>3":[V(2,0),V(-1,0),V(2,1),V(-1,-2)],
+    "3>2":[V(-2,0),V(1,0),V(-2,-1),V(1,2)],
+
+    "3>0":[V(1,0),V(-2,0),V(1,-2),V(-2,1)],
+    "0>3":[V(-1,0),V(2,0),V(-1,2),V(2,-1)]
+}
+
 
 
 class Figure:
@@ -88,6 +116,8 @@ class Figure:
         """
         self.figure_rot_data = ROT_MINO_DATA[type]
         self.rotation = 0
+        self.type = type
+        self.alpha = 255
 
         self.pos = pos
         self.block_list = []
@@ -98,13 +128,24 @@ class Figure:
             self.block_list.append(Block(v,newpos,styles.get_rotation()))
 
     def update(self,dt,window,sprites,offset=V(0,0)):
-        for block in self.block_list:
-            block.update(window,sprites,offset)
+        self.update_block_pos()
+        self.draw(dt,window,sprites,offset)
 
+    def draw(self,dt,window,sprites,offset=V(0,0),alpha=None):
+        if alpha is None:
+            alpha = self.alpha
+
+        for block in self.block_list:
+            block.update(window,sprites,offset,alpha)
+    
     def update_block_pos(self):
         for (i,v) in enumerate(self.figure_rot_data[self.rotation]):
             self.block_list[i].pos = v + self.pos
-
+            self.block_list[i].rotation = self.rotation
+    
+    def ghost(self,dt,window,sprites,offset,grid_offset,alpha=100):
+        location = offset+ V(grid_offset[0]*16,grid_offset[1]*16)
+        self.draw(dt,window,sprites,location,alpha)
 
 
 class Block:
@@ -115,10 +156,18 @@ class Block:
         self.sprite_name = sprite_name
         self.dimensions = V(16,16)
         self.rotation = rotation
+        self.rot_val = 0
 
-    def update(self,window,sprites,offset):
+    def update(self,window,sprites,offset,alpha=255):
         pos_rect = pg.Rect((V(self.pos)*self.dimensions[0])+offset,self.dimensions)
-        window.blit(sprites.sprites[self.sprite_name],pos_rect)
+        
+        rotation = None
+        if self.rotation:
+            rotation = self.rot_val*90
+
+        sprite = sprites.get_image(self.sprite_name,alpha,rotation)
+
+        window.blit(sprite,pos_rect)
 
         
 

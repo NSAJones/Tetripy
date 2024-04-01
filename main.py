@@ -3,6 +3,7 @@
 import pygame as pg
 import timer as t
 import sprites as s
+import grid as g
 import figure,easing
 
 V = pg.Vector2
@@ -12,9 +13,9 @@ class Window:
 
     def __init__(self) -> None:
         
-        self.window_dims = V(640,360)
+        self.window_dims = V(640*2,360*2)
         self.fullscreen_dims = pg.display.list_modes()[0]
-        self.game_dims = V(100,100)
+        self.game_dims = V(640,360)
 
         self.scale = None
         self.game_rect = None
@@ -52,7 +53,7 @@ class Window:
 
         topleft = V(rect.topleft)
 
-        rect.scale_by(self.scale)
+        rect = rect.scale_by(self.scale)
         
         rect.topleft = topleft * self.scale
 
@@ -96,11 +97,14 @@ class Window:
     def update(self):
         #Updates dt and flips display as well as drawing a background
 
-        self.dt = self.clock.tick(self.fps)
+        self.dt = self.clock.tick(self.fps)/1000
+        if self.dt > 1:
+            self.dt = 1/60
+
         pg.display.flip()
 
         self.window.fill(V3(0,0,0))
-        self.window.fill(V3(0,0,200),self.game_rect)
+        self.window.fill(V3(0,0,80),self.game_rect)
 
 
 class Events:
@@ -118,7 +122,7 @@ class Events:
                         "rotate_anti_clock":["z",
                                              "right control",
                                              "left control"],
-                        "hard_drop":["space"],
+                        "hard_drop":["space","1"],
                         "hold_block":["c",
                                       "right shift",
                                       "left shift"],
@@ -184,24 +188,17 @@ sprites = s.Sprites()
 styles = s.Styles(sprites)
 fonts = s.Fonts()
 
-
-letters = ["I","O","J","L","S","Z","T"]
-test_figure = figure.Figure("I",(1,1),styles)
+grid = g.Grid(window,styles)
 
 while True:
     window.update()
     events.update(window.dt)
     timer.update(window.dt)
+    grid.update(window.dt,window,styles,events,sprites)
 
     fonts.draw_font("stuff and things",
                       pg.Rect(V(0,0),V(70,50)),
                       window)
-
-    test_figure.update(window.dt,window,sprites)
-
-    if events.key_pressed("hard_drop"):
-        letters.append(letters.pop(0))
-        test_figure = figure.Figure(letters[0],(1,1),styles)
 
 
 

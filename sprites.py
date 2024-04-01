@@ -144,7 +144,7 @@ class Sprites:
         if path in self.sprites.keys():
             return self.sprites[name]
         else:
-            self.sprites[name] = pg.image.load(path)
+            self.sprites[name] = pg.image.load(path).convert()
             return self.sprites[name]
     
     def split_spritesheet(self,name,dims):
@@ -164,10 +164,17 @@ class Sprites:
             split_sprites_imgs = split_spritesheet(self.sprites[name],dims)
             for (i,v) in enumerate(split_sprites_imgs):
                 child_name = f"{name}_{i}"
-                self.sprites[child_name] = v
+                self.sprites[child_name] = v.convert()
                 split_sprites.append(child_name)
             
         return split_sprites
+    
+    def get_image(self,name,alpha=255,rotation=None):
+        image = self.sprites[name]
+        image.set_alpha(alpha)
+        if rotation:
+            image = pg.transform.rotate(image,rotation)
+        return image
 
 
 class Styles:

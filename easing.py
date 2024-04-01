@@ -1,7 +1,7 @@
 #Small module that has functions used for interpolation
 
-def lerp(perc,val1,val2):
-        return val1+(perc*(val1-val2))
+def lerp(t,a,b):
+        return a + (b-a) * t
 
 #Sasing functions for use with lerp
 
