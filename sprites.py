@@ -40,8 +40,10 @@ def split_spritesheet(surface,cell_dims):
 
 
 class Fonts:
+    """This class stores and draws pixel perfect(i.e. pixelart) fonts"""
+
     def __init__(self) -> None:
-        #Gets sprites for all 3 fornts and cuts up the spritesheets
+        #Gets sprites for all 3 fonts and cuts up the spritesheets
 
         self.path = "sprites/fonts/"
         self.spritesheets = {
@@ -57,14 +59,12 @@ class Fonts:
 
         self.char_dims = V(7,9)
 
-        #Create a list of ever character in order in the font spritesheets
-
+        #Create a list of every character in order in the font spritesheets
         char_order = list(" !\"#$%&'()*+,-./0123456789:;<=>?"+
                       r"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_"+
                       "`abcdefghijklmnopqrstuvwxyz{}~")
         
         #Split up the spritesheets for each font
-
         for (ss_name,spritesheet) in self.spritesheets.items():
             letter_list = split_spritesheet(spritesheet,
                                               self.char_dims)
@@ -73,23 +73,9 @@ class Fonts:
             for (i,v) in enumerate(char_order):
                 self.fonts[ss_name][v] = letter_list[i]
 
-        # cellphone = split_spritesheet(self.spritesheets["cellphone"],
-        #                               self.char_dims)
-        # futuristic = split_spritesheet(self.spritesheets["futuristic"],
-        #                               self.char_dims)
-        # oldschool = split_spritesheet(self.spritesheets["oldschool"],
-        #                               self.char_dims)
-
-        # for (i,v) in enumerate(char_order): 
-        #     self.chars_cellphone[v] = cellphone[i]
-        #     self.chars_futuristic[v] = futuristic[i]
-        #     self.chars_oldschool[v] = oldschool[i]
-    
     def draw_font(self,text,rect,window,type="oldschool"):
+
         #Draws text within a rect
-
-        #rect.bottom += 500
-
         if type not in self.fonts.keys():
             raise ValueError("type parameter is not the name of a font")
 
@@ -104,7 +90,8 @@ class Fonts:
             max_word_len = int(rect.width//self.char_dims[0])
 
             if max_word_len < len(word):
-                #If word is too long, split it between lines
+                #If word is too long for rect width, split it between
+                #lines with a hyphen
 
                 word_list = [word[max_word_len-1:]] + word_list
                 word = word[:max_word_len-1]+"-"
@@ -131,15 +118,24 @@ class Fonts:
 
 
 class Sprites:
-    #Stores sprites so they can be reused
+    """
+    This class stores images so they can be reused and stored centrally
+    instead of an object instance importing the image every time
+    """
 
     def __init__(self) -> None:
         self.sprites = {}
         self.split_sprites = {}
 
     def get_sprite(self,path,name):
-        #Fetches image at path, if it is already in self.sprites,
-        #reuse it
+        """
+        Fetches image at path, if it is already in self.sprites,
+        reuse it
+
+        Parameters:
+        path(str): file path to image
+        name(str): the assigned name to sprite in self.sprites
+        """
 
         if path in self.sprites.keys():
             return self.sprites[name]
@@ -148,10 +144,19 @@ class Sprites:
             return self.sprites[name]
     
     def split_spritesheet(self,name,dims):
-        #Split a spritesheet by name, if it is already in
-        #self.split_sprites, reuse it
-        #The split images are put into self.sprites with the affix
-        #sprite_1, sprite_2, sprite_3, ...
+        """
+        Split a spritesheet by name, if it is already in
+        self.split_sprites, reuse it
+        The split images are put into self.sprites with the affix
+        sprite_1, sprite_2, sprite_3, ...
+
+        Parameters:
+        name(str): name of sprite in self.sprites
+        dims(pg.Vector2): dimension to cut out of sprite
+
+        Returns:
+        list: a list of the sprite names of the newly created sprites
+        """
 
         split_sprites = []
 
@@ -170,6 +175,8 @@ class Sprites:
         return split_sprites
     
     def get_image(self,name,alpha=255,rotation=None):
+        """Returns image surface with options to make transparent or rotate it"""
+
         image = self.sprites[name]
         image.set_alpha(alpha)
         if rotation:
@@ -178,14 +185,21 @@ class Sprites:
 
 
 class Styles:
-    #Manages different tilesets for the tetriminos to pick from
+    """This class manages different tilesets for the tetriminos to pick from"""
 
     def __init__(self,sprites) -> None:
-        #Get all tetris styles using cfg files
+        """
+        Parameters:
+        sprites(Sprites): sprite class
+        """
 
+        #Dictionary to store Style objects
         self.style_list = {}
+
+        #Set default style
         self.current_style = "Cracked Tiles"
 
+        #Read all folders in directory and create a Style object from each
         cfg_file = None
         for f in os.listdir("sprites/styles"):
             cfg_file = os.path.join("sprites","styles",f,"style.cfg")
@@ -193,7 +207,12 @@ class Styles:
             self.style_list[style.name] = style
 
     def get_blocks(self,letter):
-        #get a list of 4 sprite names for a tetrimino from a style
+        """
+        Gets a list of sprite names for a new figure in current style
+
+        Parameters:
+        letter(str): tetrimino name - choose from (J,L,O,T,Z,S,I)
+        """
 
         style = self.style_list[self.current_style]
         sprites = []
@@ -221,8 +240,14 @@ class Styles:
 
 
 class Style:
+    """This class reads style data from cfg file for tetrimino sprites"""
+
     def __init__(self,cfg_file,sprites) -> None:
-        #this class fetches and stores data from cfg files
+        """
+        Parameters:
+        cfg_file(str): path to cfg file
+        sprites(Sprites): sprite class
+        """
 
         """
         There are 4 different styles types:
@@ -232,14 +257,6 @@ class Style:
           which is picked every time, tiles are not joined
         * joined - tiles are joined and there is a specific image for 
           each tetrimino
-        * tileset - tetriminos pick a random tile, uses a tileset to
-          support all possible tetriminos
-        """
-
-        """
-        There are 3 different animation types:
-        * none - no animation
-        * 
         """
 
         style_path = cfg_file.replace("style.cfg","")
@@ -253,7 +270,9 @@ class Style:
         self.images = config["Style"]["images"].split(",")
         self.rotation = bool(config["Style"]["rotation"])
 
-        #each type has a 2d list for variants, then animations
+        #Each image file is for a seperate piece, the x axis is for
+        #animation and the y axis is for variants in the same figure
+
         self.variants = {}
 
         for img_name in self.images:
