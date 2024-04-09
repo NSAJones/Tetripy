@@ -276,7 +276,7 @@ while True:
     window.update()
     events.update(window.dt)
     timer.update(window.dt)
-    grid.update(window.dt,window,styles,events,sprites)
+    grid.update(window.dt,window,styles,events,sprites,fonts)
 
     fonts.draw_font("stuff and things",
                       pg.Rect(V(0,0),V(70,50)),

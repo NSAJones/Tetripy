@@ -283,6 +283,12 @@ class Block:
 
         #Draw surface to window class
         window.blit(sprite,pos_rect)
+    
+    def __str__(self) -> str:
+        return f"V({self.pos[0]},{self.pos[1]})"
+    
+    def __repr__(self) -> str:
+        return f"V({self.pos[0]},{self.pos[1]})"
 
         
 

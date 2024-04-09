@@ -30,7 +30,7 @@ class Grid:
 
         self.next_figures = []
         self.figure_bag = []
-        self.shown_pieces = 6
+        self.shown_pieces = 2
 
         self.ghost_pos = V(0,0)
         self.used_swap = False
@@ -39,13 +39,15 @@ class Grid:
         self.lock_time_max = 1
         self.gravity_time = 0
         self.gravity_time_max = 0.8
-        self.gravity_time_max_held = 0.1
+        self.gravity_time_max_held = 0.05
 
         self.dir_held_time = 0
         self.dir_held_max = 0.25
         self.dir_held_skip = 0.17
 
         self.block_dict = {}
+
+        self.score = Score()
 
         self.update_bag(styles)
         self.next_piece(styles)
@@ -264,46 +266,49 @@ class Grid:
 
         self.used_swap = False
     
-    def draw_widgets(self,dt,window,sprites):
+    def draw_widgets(self,dt,window,sprites,fonts):
 
         side_stuff_rect = pg.Rect(V(0,0),V(16*4,16*3))
         side_stuff_rect.top = self.rect.top
         side_stuff_rect.right = self.rect.left
         if not self.held_figure is None:
-            self.held_figure.update(dt,window,sprites,side_stuff_rect.topleft)
+            self.held_figure.update(window,sprites,side_stuff_rect.topleft)
         
         side_stuff_rect.left = self.rect.right
         for f in self.next_figures:
-            f.update(dt,window,sprites,side_stuff_rect.topleft)
+            f.update(window,sprites,side_stuff_rect.topleft)
             side_stuff_rect.top += side_stuff_rect.height
+        
+        self.score.update(dt,window,fonts,V(side_stuff_rect.topleft))
 
     def score_update(self):
-        #checks if grid can score
-
+        #Checks if grid can score
         scored_lines = []
 
         for row_num in range(int(self.grid_dims[1])):
             if row_num in self.block_dict.keys():
                 row = self.block_dict[row_num]
-                #if score move all previous rows down
+                #If score move all previous rows down
+                if len(row) >= self.grid_dims[0]:
+                    scored_lines.append(row_num)
 
-                scored_lines.append(row_num)
-
-        #check for t spins
+        #Check for t spins
         if self.active_figure.type == "T" and self.last_move_rotation:
             t_origin = V(self.active_figure.pos)
             corner_pos = [t_origin,
                           t_origin+V(2,0),
                           t_origin+V(2,2),
-                          t_origin+V(0,2)
-                          ]
+                          t_origin+V(0,2)]
+            
             facing_corner_pos = corner_pos[self.active_figure.rotation,
                                            int((self.active_figure.rotation+1
                                                 )%4)]
+            
             block_list = self.get_blocks(True)
 
             active_corners = 0
             facing_corners = 0
+
             for b in block_list:
                 if b in corner_pos:
                     active_corners += 1
@@ -312,31 +317,36 @@ class Grid:
             
             if active_corners >= 3:
                 if facing_corners == 2:
-                    pass
-                    #t spin
-                else:
                     #t spin mini
-                    pass
+                    self.score.score_spin(len(scored_lines),True)
+                else:
+                    #t spin 
+                    self.score.score_spin(len(scored_lines),False)
+        elif len(scored_lines)>0:
+            self.score.score_lines(len(scored_lines))
 
+        
+        #Check if any row is full
         for row_num in scored_lines:
-            if len(row) >= self.grid_dims[0]:
-                    del self.block_dict[row_num]
+            del self.block_dict[row_num]
+            for i in range(row_num,-1,-1):
+                if i in self.block_dict.keys():
+                    for block in self.block_dict[i]:
+                        block.pos += V(0,1)
 
-                    for i in range(row_num,-1,-1):
-                        if i in self.block_dict.keys():
-                            for block in self.block_dict[i]:
-                                block.pos += V(0,1)
-        #update rows dictionary if blocks have moved
-                                
-        if len(scored_lines)>1:
+        #Update rows dictionary if blocks have moved
             self.update_rows()
 
         return len(scored_lines)>1
+
+    def animate_scoring(self,dt,sprites):
+        pass
 
     def update_rows(self):
         #moves blocks to their proper row in block_dict
 
         block_list = self.get_blocks()
+        print(str(block_list))
         self.block_dict = {}
 
         for block in block_list:
@@ -345,7 +355,7 @@ class Grid:
                 self.block_dict[row_num] = []
             self.block_dict[row_num].append(block)
         
-    def update(self,dt,window,styles,events,sprites):
+    def update(self,dt,window,styles,events,sprites,fonts):
         fill_surf = pg.Surface(self.rect.size)
         fill_surf.fill((0,0,10))
         window.blit(fill_surf,self.rect)
@@ -359,7 +369,7 @@ class Grid:
         self.active_figure.ghost(window,sprites,self.rect.topleft,self.ghost_pos)
         self.active_figure.update(window,sprites,self.rect.topleft)
         
-        self.draw_widgets(dt,window,sprites)
+        self.draw_widgets(dt,window,sprites,fonts)
 
 
 
@@ -379,7 +389,100 @@ class Score:
         self.spin_double = 1200
         self.spin_triple = 1600
 
-        self.combo = 50
+        self.combo_score = 50
+
+        self.pending_scores = []
+        self.pending_timer = 0
+        self.pending_timer_max = 4
+
+        self.level = 1
+        self.combo = 0
+
+
+    def score_lines(self,lines):
+        """Score a normal line from 1 to 4"""
+
+        score_add = 0
+
+        match lines:
+            case 1:
+                score_add = self.single
+            case 2:
+                score_add = self.double
+            case 3:
+                score_add = self.triple
+            case 4:
+                score_add = self.quad
+        
+        score_add = score_add * self.level
+        self.pending_scores.append(score_add)
+    
+    def score_spin(self,lines,t_spin_mini=False):
+        """Score a t-spin or mini t-spin"""
+
+        score_add = 0
+
+        if t_spin_mini:
+            match lines:
+                case 1:
+                    score_add = self.m_spin_single
+                case 2:
+                    score_add = self.m_spin_double
+
+        else:
+            match lines:
+                case 1:
+                    score_add = self.spin_single
+                case 2:
+                    score_add = self.spin_double
+                case 3:
+                    score_add = self.spin_triple
+        
+        score_add = score_add * self.level
+        self.pending_scores.append(score_add)
+    
+    def update(self,dt,window,fonts,offset=V(0,0)):
+        font_height = fonts.char_dims[1]
+        font_rect = pg.Rect(offset,V(1000,font_height))
+
+        fonts.draw_font("SCORE",font_rect,window)
+        font_rect.topleft += V(0,font_height)
+
+        #Do animation with lerp using easing library
+        if len(self.pending_scores) != 0:
+            self.pending_timer += dt
+            t = easing.ease_in_out_cubic(self.pending_timer/self.pending_timer_max)
+
+            add_score = self.score + int(easing.lerp(t,0,self.pending_scores[0]))
+            fonts.draw_font(str(add_score),font_rect,window)
+
+            for i,score in enumerate(self.pending_scores):
+                font_rect.topleft += V(0,font_height)
+
+                if i == 0:
+                    new_score = int(easing.lerp(t,score,0))
+                    fonts.draw_font(f"+{new_score}",font_rect,window)
+
+                    if self.pending_timer >= self.pending_timer_max:
+                        self.score += self.pending_scores.pop(0)
+                        self.pending_timer = 0
+                else:
+                    fonts.draw_font(f"+{score}",font_rect,window)
+        else:
+            fonts.draw_font(str(self.score),font_rect,window)
+            self.pending_timer = 0
+        
+        
+
+
+
+
+
+
+
+
+        
+        
 
 
             
