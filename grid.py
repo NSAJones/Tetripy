@@ -45,6 +45,9 @@ class Grid:
         self.dir_held_max = 0.25
         self.dir_held_skip = 0.17
 
+        self.animate_time = 0
+        self.scored_lines = []
+
         self.block_dict = {}
 
         self.score = Score()
@@ -102,7 +105,7 @@ class Grid:
         
         self.ghost_pos = V(ghost_check)
     
-    def set_figure(self,styles):
+    def set_figure(self,styles,soft_drop=True):
         #Destroy current figure and put it into block_list
 
         for block in self.active_figure.block_list:
@@ -112,6 +115,7 @@ class Grid:
             self.block_dict[row_num].append(block)
 
         self.score_update()
+        self.score.score_drop(self.active_figure.pos[1],soft_drop)
         self.next_piece(styles)
         
     def get_blocks(self,pos_only=False):
@@ -127,7 +131,7 @@ class Grid:
         return block_list
 
     def update_input(self,dt,events,styles):
-        #Gandles the different inputs into the game
+        #  Handles the different inputs into the game
 
         if events.key_pressed("left") and self.valid_pos(V(-1,0)):
             self.last_move_rotation = False
@@ -170,10 +174,16 @@ class Grid:
             self.rotate(False)
         
         if events.key_pressed("hard_drop"):
+            
+            hard_check = V(0,0)
+            while self.valid_pos(hard_check + V(0,1)):
+                hard_check += V(0,1)
+            
             self.last_move_rotation = False
-            self.active_figure.pos += self.ghost_pos
+            self.active_figure.pos += hard_check
             self.active_figure.update_block_pos()
-            self.set_figure(styles)
+            self.set_figure(styles,False)
+
         
         if events.key_pressed("hold_block") and not self.used_swap:
             if self.held_figure is None:
@@ -282,17 +292,19 @@ class Grid:
         self.score.update(dt,window,fonts,V(side_stuff_rect.topleft))
 
     def score_update(self):
-        #Checks if grid can score
-        scored_lines = []
+        # Checks if grid can score
 
         for row_num in range(int(self.grid_dims[1])):
             if row_num in self.block_dict.keys():
                 row = self.block_dict[row_num]
                 #If score move all previous rows down
                 if len(row) >= self.grid_dims[0]:
-                    scored_lines.append(row_num)
+                    self.scored_lines.append(row_num)
 
-        #Check for t spins
+    def score_lines(self):
+        #
+
+        # Check for t spins
         if self.active_figure.type == "T" and self.last_move_rotation:
             t_origin = V(self.active_figure.pos)
             corner_pos = [t_origin,
@@ -318,35 +330,80 @@ class Grid:
             if active_corners >= 3:
                 if facing_corners == 2:
                     #t spin mini
-                    self.score.score_spin(len(scored_lines),True)
+                    self.score.score_spin(len(self.scored_lines),True)
                 else:
                     #t spin 
-                    self.score.score_spin(len(scored_lines),False)
-        elif len(scored_lines)>0:
-            self.score.score_lines(len(scored_lines))
+                    self.score.score_spin(len(self.scored_lines),False)
+        elif len(self.scored_lines)>0:
+            self.score.score_lines(len(self.scored_lines))
 
         
-        #Check if any row is full
-        for row_num in scored_lines:
+        # Delete blocks in full rows
+        for row_num in self.scored_lines:
             del self.block_dict[row_num]
             for i in range(row_num,-1,-1):
                 if i in self.block_dict.keys():
                     for block in self.block_dict[i]:
                         block.pos += V(0,1)
 
-        #Update rows dictionary if blocks have moved
-            self.update_rows()
+        # Update rows dictionary if blocks have moved
+        self.update_rows()
+        self.scored_lines = []
 
-        return len(scored_lines)>1
+    def animate_scoring(self,dt,window,styles,sprites):
+        self.animate_time += dt
 
-    def animate_scoring(self,dt,sprites):
-        pass
+        score_anim = styles.get_score_anim()
+        anim_len = len(score_anim)
+
+        delay = 0.6/anim_len
+        single_delay = delay * anim_len
+        offset = 0.02
+        max_delay_all = (single_delay * offset) * self.grid_dims[0]
+
+        start_time = 0
+        
+        for x in range(int(self.grid_dims[0])):
+
+            end_time = start_time + single_delay
+            
+            
+
+
+            if self.animate_time < start_time:
+                for row in self.scored_lines:
+                    
+                    block_rect = pg.Rect(V(self.rect.topleft)+V(x*16,row*16),
+                                V(16,16))
+                    sprite = sprites.get_image(score_anim[sprite_index])
+                    window.blit(sprite,block_rect)
+
+            elif self.animate_time < end_time:
+                t = (self.animate_time-start_time)/single_delay
+                t = easing.ease_in_cubic(t)
+                sprite_index = int(easing.lerp(t,0,anim_len))
+                sprite_index = min(sprite_index,anim_len-1)               
+                
+                for row in self.scored_lines:
+                    
+                    block_rect = pg.Rect(V(self.rect.topleft)+V(x*16,row*16),
+                                V(16,16))
+                    sprite = sprites.get_image(score_anim[sprite_index])
+                    window.blit(sprite,block_rect)
+            
+            start_time += single_delay*offset
+
+                
+                    
+        if self.animate_time >= end_time:
+            self.score_lines()
+            self.animate_time = 0
 
     def update_rows(self):
         #moves blocks to their proper row in block_dict
 
         block_list = self.get_blocks()
-        print(str(block_list))
+
         self.block_dict = {}
 
         for block in block_list:
@@ -360,15 +417,22 @@ class Grid:
         fill_surf.fill((0,0,10))
         window.blit(fill_surf,self.rect)
 
-        self.update_input(dt,events,styles)
-        self.update_gravity(dt,events,styles)
+        if len(self.scored_lines) == 0:
+            self.update_input(dt,events,styles)
+            self.update_gravity(dt,events,styles)
 
-        for block in self.get_blocks():
-            block.update(window,sprites,self.rect.topleft)
-        
-        self.active_figure.ghost(window,sprites,self.rect.topleft,self.ghost_pos)
-        self.active_figure.update(window,sprites,self.rect.topleft)
-        
+            
+            
+            self.active_figure.ghost(window,sprites,self.rect.topleft,self.ghost_pos)
+            self.active_figure.update(window,sprites,self.rect.topleft)
+        else:
+            self.animate_scoring(dt,window,styles,sprites)
+
+        for (row,blocks) in self.block_dict.items():
+                if row not in self.scored_lines:
+                    for block in blocks:
+                        block.update(window,sprites,self.rect.topleft)
+
         self.draw_widgets(dt,window,sprites,fonts)
 
 
@@ -441,6 +505,13 @@ class Score:
         score_add = score_add * self.level
         self.pending_scores.append(score_add)
     
+    def score_drop(self,cells,soft_drop=False):
+        if soft_drop:
+            self.pending_scores.append(int(cells))
+        else:
+            self.pending_scores.append(int(cells*2))
+
+
     def update(self,dt,window,fonts,offset=V(0,0)):
         font_height = fonts.char_dims[1]
         font_rect = pg.Rect(offset,V(1000,font_height))
@@ -448,10 +519,13 @@ class Score:
         fonts.draw_font("SCORE",font_rect,window)
         font_rect.topleft += V(0,font_height)
 
+        animation_time_total = (self.pending_timer_max/
+                                (1+(len(self.pending_scores)/2)))
+
         #Do animation with lerp using easing library
         if len(self.pending_scores) != 0:
             self.pending_timer += dt
-            t = easing.ease_in_out_cubic(self.pending_timer/self.pending_timer_max)
+            t = easing.ease_in_out_cubic(self.pending_timer/animation_time_total)
 
             add_score = self.score + int(easing.lerp(t,0,self.pending_scores[0]))
             fonts.draw_font(str(add_score),font_rect,window)
@@ -463,7 +537,7 @@ class Score:
                     new_score = int(easing.lerp(t,score,0))
                     fonts.draw_font(f"+{new_score}",font_rect,window)
 
-                    if self.pending_timer >= self.pending_timer_max:
+                    if self.pending_timer >= animation_time_total:
                         self.score += self.pending_scores.pop(0)
                         self.pending_timer = 0
                 else:

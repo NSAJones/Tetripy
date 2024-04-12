@@ -142,7 +142,7 @@ class Window:
 
 
 class Events:
-    """Class that manages keyinputs and key names"""
+    """Class that manages key inputs and key names"""
 
     def __init__(self) -> None:
 

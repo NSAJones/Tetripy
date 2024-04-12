@@ -1,7 +1,6 @@
-#This file contains classes that manage sprites
+# This file contains classes that manage sprites
 
-import os
-import configparser
+import configparser,json,os
 import pygame as pg
 from random import shuffle
 
@@ -15,9 +14,9 @@ SPRITESHEETS = [
 ]
 
 def split_spritesheet(surface,cell_dims):
-    #Creates a list of subsurfaces from a spritesheet based on cell dims
+    # Creates a list of subsurfaces from a spritesheet based on cell dims
 
-    #Calculate the number of columns+rows based on cell_dims
+    # Calculate the number of columns+rows based on cell_dims
 
     surface_dims = V(surface.get_size())
     surface_list = []
@@ -25,7 +24,7 @@ def split_spritesheet(surface,cell_dims):
     columns = int(surface_dims[0]//cell_dims[0])
     rows = int(surface_dims[1]//cell_dims[1])
 
-    #create subsurfaces using pygame Rect objects
+    # Create subsurfaces using pygame Rect objects
 
     for y in range(rows):
         for x in range(columns):
@@ -43,7 +42,7 @@ class Fonts:
     """This class stores and draws pixel perfect(i.e. pixelart) fonts"""
 
     def __init__(self) -> None:
-        #Gets sprites for all 3 fonts and cuts up the spritesheets
+        # Gets sprites for all 3 fonts and cuts up the spritesheets
 
         self.path = "sprites/fonts/"
         self.spritesheets = {
@@ -59,12 +58,12 @@ class Fonts:
 
         self.char_dims = V(7,9)
 
-        #Create a list of every character in order in the font spritesheets
+        # Create a list of every character in order in the font spritesheets
         char_order = list(" !\"#$%&'()*+,-./0123456789:;<=>?"+
                       r"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_"+
                       "`abcdefghijklmnopqrstuvwxyz{}~")
         
-        #Split up the spritesheets for each font
+        # Split up the spritesheets for each font
         for (ss_name,spritesheet) in self.spritesheets.items():
             letter_list = split_spritesheet(spritesheet,
                                               self.char_dims)
@@ -75,7 +74,7 @@ class Fonts:
 
     def draw_font(self,text,rect,window,type="oldschool"):
 
-        #Draws text within a rect
+        # Draws text within a rect
         if type not in self.fonts.keys():
             raise ValueError("type parameter is not the name of a font")
 
@@ -90,8 +89,8 @@ class Fonts:
             max_word_len = int(rect.width//self.char_dims[0])
 
             if max_word_len < len(word):
-                #If word is too long for rect width, split it between
-                #lines with a hyphen
+                # If word is too long for rect width, split it between
+                # lines with a hyphen
 
                 word_list = [word[max_word_len-1:]] + word_list
                 word = word[:max_word_len-1]+"-"
@@ -99,11 +98,11 @@ class Fonts:
                 draw_pos = V(rect.topleft[0],draw_pos[1]+self.char_dims[1])
                 
             elif rect.right < word_rect.right:
-                #If word goes past rect, word wrap
+                # If word goes past rect, word wrap
 
                 draw_pos = V(rect.topleft[0],draw_pos[1]+self.char_dims[1])
 
-            #Draw letters to window
+            # Draw letters to window
             for letter in word:
                 letter_rect = pg.Rect(draw_pos,self.char_dims)
 
@@ -193,13 +192,13 @@ class Styles:
         sprites(Sprites): sprite class
         """
 
-        #Dictionary to store Style objects
+        # Dictionary to store Style objects
         self.style_list = {}
 
-        #Set default style
+        # Set default style
         self.current_style = "Cracked Tiles"
 
-        #Read all folders in directory and create a Style object from each
+        # Read all folders in directory and create a Style object from each
         cfg_file = None
         for f in os.listdir("sprites/styles"):
             cfg_file = os.path.join("sprites","styles",f,"style.cfg")
@@ -236,6 +235,12 @@ class Styles:
     
     def get_rotation(self):
         return self.style_list[self.current_style].rotation
+    
+    def get_score_anim(self):
+        return self.style_list[self.current_style].score_animation
+    
+    def get_anim_delay(self):
+        return self.style_list[self.current_style].animation_delay
 
 
 
@@ -264,18 +269,25 @@ class Style:
         config = configparser.ConfigParser()
         config.read(cfg_file)
 
-        self.name = config["Style"]["name"]
-        self.creator = config["Style"]["creator"]
-        self.type = config["Style"]["type"]
-        self.images = config["Style"]["images"].split(",")
-        self.rotation = bool(config["Style"]["rotation"])
+        self.name = config["Metadata"]["name"]
+        self.creator = config["Metadata"]["creator"]
+        self.type = config["Metadata"]["type"]
 
-        #Each image file is for a seperate piece, the x axis is for
-        #animation and the y axis is for variants in the same figure
+        self.blocks = json.loads(config["Images"]["blocks"])
+        self.score = config["Images"]["score"]
+        self.rotation = bool(config["Images"]["rotation"])
+        self.animation_delay = float(config["Images"]["animation_delay"])
+
+        score_name = f"{self.name}_{self.score}"
+        sprites.get_sprite(os.path.join(style_path,self.score),score_name)
+        self.score_animation = sprites.split_spritesheet(score_name,V(16,16))
+
+        # Each image file is for a seperate piece, the x axis is for
+        # animation and the y axis is for variants in the same figure
 
         self.variants = {}
 
-        for img_name in self.images:
+        for img_name in self.blocks:
             self.variants[img_name[:-4]] = {}
 
             location = os.path.join(style_path,img_name)
@@ -287,6 +299,10 @@ class Style:
 
             for var in var_list:
                 self.variants[img_name[:-4]][var] = sprites.split_spritesheet(var,V(16,16))
+        
+
+        
+        
             
             
 
