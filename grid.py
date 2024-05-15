@@ -26,7 +26,9 @@ class Grid:
 
         self.active_figure = None
         self.held_figure = None
+
         self.last_move_rotation = False
+        self.last_figure = None
 
         self.next_figures = []
         self.figure_bag = []
@@ -116,6 +118,7 @@ class Grid:
 
         self.score_update()
         self.score.score_drop(self.active_figure.pos[1],soft_drop)
+
         self.next_piece(styles)
         
     def get_blocks(self,pos_only=False):
@@ -268,7 +271,9 @@ class Grid:
                 self.next_figures.append(self.figure_bag.pop(0))
 
     def next_piece(self,styles):
-        #change to the next figure
+        # Change to the next figure
+
+        self.last_figure = self.active_figure
 
         self.active_figure = self.next_figures.pop(0)
         self.active_figure.pos = V(self.drop_pos)
@@ -302,19 +307,21 @@ class Grid:
                     self.scored_lines.append(row_num)
 
     def score_lines(self):
-        #
+        # Score lines
 
         # Check for t spins
-        if self.active_figure.type == "T" and self.last_move_rotation:
-            t_origin = V(self.active_figure.pos)
+        if self.last_figure.type == "T" and self.last_move_rotation and(
+            not(self.last_figure.pos[0] < 0 and 
+                self.last_figure.pos[0] > self.grid_dims[0])):
+            
+            t_origin = V(self.last_figure.pos)
             corner_pos = [t_origin,
                           t_origin+V(2,0),
                           t_origin+V(2,2),
                           t_origin+V(0,2)]
             
-            facing_corner_pos = corner_pos[self.active_figure.rotation,
-                                           int((self.active_figure.rotation+1
-                                                )%4)]
+            facing_corner_pos = [corner_pos[self.last_figure.rotation],
+                                 corner_pos[int((self.last_figure.rotation+1)%4)]]
             
             block_list = self.get_blocks(True)
 
@@ -325,7 +332,7 @@ class Grid:
                 if b in corner_pos:
                     active_corners += 1
                 if b in facing_corner_pos:
-                    facing_corner_pos += 1
+                    facing_corners += 1
             
             if active_corners >= 3:
                 if facing_corners == 2:
@@ -380,7 +387,6 @@ class Grid:
 
             elif self.animate_time < end_time:
                 t = (self.animate_time-start_time)/single_delay
-                t = easing.ease_in_cubic(t)
                 sprite_index = int(easing.lerp(t,0,anim_len))
                 sprite_index = min(sprite_index,anim_len-1)               
                 

@@ -4,10 +4,13 @@ import pygame as pg
 import timer as t
 import sprites as s
 import grid as g
-import figure,easing
+import figure,easing,ui
 
 V = pg.Vector2
 V3 = pg.Vector3
+
+
+
 class Window:
     """Class that manages window resizing, scale and clock dt"""
 
@@ -29,7 +32,7 @@ class Window:
         self.mode = None
 
         #Variables about the clock and the games FPS
-        self.fps = 60
+        self.fps = 65
         self.clock = pg.time.Clock()
         self.dt = None
 
@@ -71,7 +74,6 @@ class Window:
         Returns
         pg.Rect: Scaled Rect
         """
-
         topleft = V(rect.topleft)
 
         rect = rect.scale_by(self.scale)
@@ -128,6 +130,36 @@ class Window:
         #Draw surface to window
         self.window.blit(surf,dest,None,special_flags)
     
+    def blit_precise(self,surf,topleft,size):
+        """draw scaled image precisely, as scaled rects are int only"""
+
+        topleft *= self.scale
+        topleft += self.game_rect.topleft
+
+        size *=self.scale
+
+        surf = pg.transform.scale_by(surf,self.scale)
+        rect = pg.Rect(topleft,size)
+
+
+        self.window.blit(surf,rect)
+
+    def fill_corners(self):
+        # Fill in corners of game window
+        top_dims = V(self.window.get_width(),
+                     (self.window.get_height()-self.game_rect.height)/2)
+        
+        side_dims = V((self.window.get_width()-self.game_rect.width)/2,
+                      self.window.get_height())
+        
+        self.window.fill(V3(0,0,0),pg.Rect((0,0),side_dims))
+        self.window.fill(V3(0,0,0),pg.Rect((0,0),top_dims))
+
+        self.window.fill(V3(0,0,0),pg.Rect((self.window.get_width()-side_dims[0],0)
+                                           ,side_dims))
+        self.window.fill(V3(0,0,0),pg.Rect((0,self.window.get_height()-top_dims[1])
+                                           ,top_dims))
+    
     def update(self):
         """Updates dt and flips display as well as filling the background"""
 
@@ -135,10 +167,15 @@ class Window:
         if self.dt > 1:
             self.dt = 1/60
 
+        self.fill_corners()
+
         pg.display.flip()
 
         self.window.fill(V3(0,0,0))
         self.window.fill(V3(0,0,80),self.game_rect)
+
+    
+
 
 
 class Events:
@@ -157,6 +194,7 @@ class Events:
                         "down":["s","down arrow"],
                         "left":["a","left arrow"],
                         "right":["d","right arrow"],
+                        "enter":["return"],
                         "rotate_clock":["w","up arrow"],
                         "rotate_anti_clock":["z",
                                              "right control",
@@ -166,6 +204,10 @@ class Events:
                                       "right shift",
                                       "left shift"],
                         "pause":["escape"]}
+
+        self.mouse_down = False
+        self.mouse_up = False
+        self.mouse_focus = False
     
     def update(self,dt):
         """
@@ -175,48 +217,68 @@ class Events:
         dt (float): delta time in seconds, obtained from window class
         """
 
-        #Reset pressed keys every frame, pressed keys are active for
+        # Reset pressed keys every frame, pressed keys are active for
         #only one frame
         self.pressed_keys = []
+        self.mouse_down = False
+        self.mouse_up = False
 
-        #Loop through pygame events
+        # Loop through pygame events
         for event in pg.event.get():
             
-            #Allow exit when the x button is pressed on the window
+            # Allow exit when the x button is pressed on the window
             if event.type == pg.QUIT:
                 exit()
 
-            #Event for when any key if pressed
+            # Event for when any key if pressed
             if event.type == pg.KEYDOWN:
 
-                #Get key name
+                # Get key name
                 key = pg.key.name(event.key)
 
-                #Add key name to held_keys if it isn't there
-                #Add time to record how long key is pressed
+                # Add key name to held_keys if it isn't there
+                # Add time to record how long key is pressed
                 if key not in self.held_keys:
                     self.held_keys.append(key)
                     self.held_keys_time[key] = dt
                 else:
                     self.held_keys_time[key] += dt
                 
-                #Add key name to pressed_keys
+                # Add key name to pressed_keys
                 self.pressed_keys.append(key)
 
-            #Event for when any key is let go
+            # Event for when any key is let go
             if event.type == pg.KEYUP:
 
-                #Get key name
+                # Get key name
                 key = pg.key.name(event.key)
 
-                #Remove key name if it is in held_keys
+                # Remove key name if it is in held_keys
                 if key in self.held_keys:
                     self.held_keys.remove(key)
                     del self.held_keys_time[key]
             
+            if event.type == pg.MOUSEBUTTONDOWN:
+                self.mouse_down = True
+
+            if event.type == pg.MOUSEBUTTONUP:
+                self.mouse_up = True
+            
             if event.type == pg.VIDEORESIZE and window.mode == "windowed":
                 window.update_scale()
-    
+        
+
+        rel_movement = pg.mouse.get_rel()
+
+        if rel_movement != (0,0):
+            self.mouse_focus = True
+            pg.mouse.set_visible(True)
+        elif rel_movement == (0,0) and self.pressed_keys != []:
+            self.mouse_focus = False
+            pg.mouse.set_visible(False)
+        
+
+
     def key_held(self,key_map_id):
         """
         Check if keys in keymap are held based on id
@@ -230,8 +292,8 @@ class Events:
 
         key_held = False
 
-        #Multiple keys can be in one key map id, check held keys for
-        #each key in given key map id
+        # Multiple keys can be in one key map id, check held keys for
+        # each key in given key map id
         for key in self.key_map[key_map_id]:
             if key in self.held_keys:
                 key_held = True
@@ -251,14 +313,60 @@ class Events:
 
         key_pressed = False
 
-        #Multiple keys can be in one key map id, check pressed keys for
-        #each key in given key map id
+        # Multiple keys can be in one key map id, check pressed keys for
+        # each key in given key map id
         for key in self.key_map[key_map_id]:
             if key in self.pressed_keys:
                 key_pressed = True
         
         return key_pressed
 
+    def get_mouse_pos(self,window,scaled=True):
+        pos = V(pg.mouse.get_pos())
+        if scaled:
+            pos = pos - V(window.game_rect.topleft)
+            pos = pos / window.scale
+        return pos
+
+
+
+class Scenes:
+    def __init__(self) -> None:
+        self.scenes = {"main_menu":self.main_menu,
+                       "game":self.game
+                       }
+        self.current_scene = "main_menu"
+
+        self.grid = g.Grid(window,styles)
+
+        self.b1 = ui.Button("a fuckin button smh",
+                            pg.Rect(10,10,50,9*5),
+                            V(5.5))
+        
+        self.menu_buttons = ui.Button_List({"play":"play",
+                                            "options":"options",
+                                            "credits":"credits",
+                                            "quit":"quit"},
+                                           pg.Rect(0,0,150,100),
+                                           5)
+        self.menu_buttons.center_to(window.game_dims/2)
+
+    def game(self,dt,window,styles,events,sprites,fonts):
+        self.grid.update(dt,window,styles,events,sprites,fonts)
+
+    def main_menu(self,dt,window,styles,events,sprites,fonts):
+        self.menu_buttons.update(dt,window,fonts,events)
+
+        match self.menu_buttons.get_pressed():
+            case "play":
+                self.current_scene = "game"
+
+
+
+    def update(self,dt,window,styles,events,sprites,fonts):
+        self.scenes[self.current_scene](dt,window,styles,events,sprites,fonts)
+
+    
 
 pg.init()
 
@@ -270,18 +378,17 @@ sprites = s.Sprites()
 styles = s.Styles(sprites)
 fonts = s.Fonts()
 
-grid = g.Grid(window,styles)
+scenes = Scenes()
 
+# Main game loop
 while True:
+
     window.update()
     events.update(window.dt)
     timer.update(window.dt)
-    grid.update(window.dt,window,styles,events,sprites,fonts)
 
-    fonts.draw_font("stuff and things",
-                      pg.Rect(V(0,0),V(70,50)),
-                      window)
-
+    styles.draw_background(window.dt,window,sprites)
+    scenes.update(window.dt,window,styles,events,sprites,fonts)
 
     
     

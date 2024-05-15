@@ -3,6 +3,7 @@
 import configparser,json,os
 import pygame as pg
 from random import shuffle
+import easing
 
 V = pg.Vector2
 
@@ -38,6 +39,26 @@ def split_spritesheet(surface,cell_dims):
     return surface_list
 
 
+
+class Font:
+    """This class stores information about a Font"""
+    def __init__(self,spritesheet:pg.Surface,char_order:str
+                 ,name:str,char_dims:V) -> None:
+        
+        self.spritesheet = spritesheet
+        self.name = name
+        self.char_dims = char_dims
+        self.letter_images = {}
+
+
+        letter_list = split_spritesheet(spritesheet,
+                                            self.char_dims)
+
+        for (i,v) in enumerate(char_order):
+            self.letter_images[v] = letter_list[i]
+
+
+
 class Fonts:
     """This class stores and draws pixel perfect(i.e. pixelart) fonts"""
 
@@ -45,15 +66,12 @@ class Fonts:
         # Gets sprites for all 3 fonts and cuts up the spritesheets
 
         self.path = "sprites/fonts/"
-        self.spritesheets = {
+        self.spritesheets= {
             "cellphone":pg.image.load(self.path + "charmap-cellphone.png"),
             "futuristic":pg.image.load(self.path + "charmap-futuristic.png"),
             "oldschool":pg.image.load(self.path + "charmap-oldschool.png")
         }
 
-        self.chars_cellphone = {}
-        self.chars_futuristic = {}
-        self.chars_oldschool = {}
         self.fonts = {}
 
         self.char_dims = V(7,9)
@@ -65,53 +83,78 @@ class Fonts:
         
         # Split up the spritesheets for each font
         for (ss_name,spritesheet) in self.spritesheets.items():
-            letter_list = split_spritesheet(spritesheet,
-                                              self.char_dims)
-            self.fonts[ss_name] = {}
+            self.fonts[ss_name] = Font(spritesheet,char_order,ss_name,V(7,9))
 
-            for (i,v) in enumerate(char_order):
-                self.fonts[ss_name][v] = letter_list[i]
-
-    def draw_font(self,text,rect,window,type="oldschool"):
-
-        # Draws text within a rect
+    def draw_font(self,text,rect,window,type="oldschool",center=False):        # Draws text within a rect
         if type not in self.fonts.keys():
             raise ValueError("type parameter is not the name of a font")
 
+        
+
         draw_pos = V(rect.topleft)
-        word_list = text.split(" ")
+        word_list = list(text.split(" "))
+        line_list = []
 
-        while len(word_list) > 0:
+        font = self.fonts[type]
+        char_dims = font.char_dims
 
-            word = word_list.pop(0)
-            word_dims = V(self.char_dims[0]*len(word),)
-            word_rect = pg.Rect(draw_pos,word_dims)
-            max_word_len = int(rect.width//self.char_dims[0])
+        while len(word_list) > 0 or len(line_list) > 0:
 
-            if max_word_len < len(word):
-                # If word is too long for rect width, split it between
-                # lines with a hyphen
+            draw_line = False
 
-                word_list = [word[max_word_len-1:]] + word_list
-                word = word[:max_word_len-1]+"-"
+            if len(word_list) > 0:
+                word = word_list[0]
+                word_dims = V(self.char_dims[0]*len(word),)
+                word_rect = pg.Rect(draw_pos,word_dims)
+                max_word_len = int(rect.width//char_dims[0])
 
-                draw_pos = V(rect.topleft[0],draw_pos[1]+self.char_dims[1])
                 
-            elif rect.right < word_rect.right:
-                # If word goes past rect, word wrap
-
-                draw_pos = V(rect.topleft[0],draw_pos[1]+self.char_dims[1])
-
-            # Draw letters to window
-            for letter in word:
-                letter_rect = pg.Rect(draw_pos,self.char_dims)
-
-                window.blit(self.fonts[type][letter],letter_rect)
-
-                draw_pos = draw_pos + V(self.char_dims[0],0)
+                if rect.right < word_rect.right:
+                    draw_line = True
             
-            if len(word_list) != 1 and word[-1:] != "-":
-                draw_pos = draw_pos + V(self.char_dims[0],0)
+            if len(word_list) == 0:
+                draw_line = True
+
+            if draw_line:
+                line_rect = pg.Rect(V(0,draw_pos[1]),
+                                    V(len(" ".join(line_list))*char_dims[0],
+                                      char_dims[1]))
+
+                if center:
+                    line_rect.centerx = rect.centerx
+                else:
+                    line_rect.left = rect.left
+
+                draw_rect = pg.Rect(line_rect.topleft,char_dims)
+                for (i,w) in enumerate(line_list):
+
+                    for c in w:
+                        image = font.letter_images[c]
+                        window.blit(image,draw_rect)
+                        draw_rect.left += char_dims[0]
+                    
+                    if i < len(line_list)-1:
+                        draw_rect.left += char_dims[0]
+                
+                draw_pos = V(rect.topleft[0],draw_pos[1]+self.char_dims[1])
+                line_list = []
+
+            if len(word_list) > 0:
+                if max_word_len < len(word):
+                    # If word is too long for rect width, split it between
+                    # lines with a hyphen
+
+                    word_list = [word[max_word_len-1:]] + word_list
+                    word = word[:max_word_len-1]+"-"
+
+                line_list.append(word_list.pop(0))
+
+                # Draw letters to window
+                for _ in word:
+                    draw_pos = draw_pos + V(self.char_dims[0],0)
+                
+                if len(word_list) != 1 and word[-1:] != "-":
+                    draw_pos = draw_pos + V(self.char_dims[0],0)
 
 
 
@@ -197,6 +240,10 @@ class Styles:
 
         # Set default style
         self.current_style = "Cracked Tiles"
+        self.bg_timer = V(0,0)
+        self.bg_timer_max = V(5,11)
+
+        self.switch_alternate = False
 
         # Read all folders in directory and create a Style object from each
         cfg_file = None
@@ -241,6 +288,55 @@ class Styles:
     
     def get_anim_delay(self):
         return self.style_list[self.current_style].animation_delay
+    
+    def draw_background(self,dt,window,sprites):
+        sprite_name = self.style_list[self.current_style].bg_image
+        sprite = sprites.get_image(sprite_name)
+
+        starting_pos = V(sprite.get_size()) * -1
+
+        self.bg_timer[0] = (self.bg_timer[0]+dt)%self.bg_timer_max[0]
+        self.bg_timer[1] = self.bg_timer[1]+dt
+
+        if self.bg_timer[1] > self.bg_timer_max[1]:
+            self.bg_timer[1] = 0
+            self.switch_alternate = not self.switch_alternate
+
+        tx = self.bg_timer[0]/self.bg_timer_max[0]
+        ty = self.bg_timer[1]/self.bg_timer_max[1]
+        offset_vector = V(0,0)
+        offset_vector[0] = easing.lerp(tx,0,sprite.get_width())
+        offset_vector[1] = easing.lerp(ty,0,sprite.get_height())
+        
+
+        iterations = V((window.game_dims[0]//sprite.get_width())+3,
+                       (window.game_dims[1]//sprite.get_height())+3)
+
+        for x in range(int(iterations[0])):
+            for y in range(int(iterations[1])):
+                draw_pos = V(starting_pos)
+                draw_pos += V(x*sprite.get_width(),y*sprite.get_height())
+
+                """
+                offset_value = 0
+                if (x % 2 == 1 and self.switch_alternate):
+
+                    draw_pos += V(0,offset_vector[1])
+                    
+                elif (x % 2 == 1 and not self.switch_alternate):
+
+                    draw_pos += V(0,-offset_vector[1])
+                
+                elif self.switch_alternate:
+                    draw_pos += V(0,-offset_vector[1])
+                
+                elif not self.switch_alternate:
+                    draw_pos += V(0,offset_vector[1])"""
+
+
+                draw_pos += offset_vector
+
+                window.blit_precise(sprite,draw_pos,V(sprite.get_size()))
 
 
 
@@ -275,12 +371,17 @@ class Style:
 
         self.blocks = json.loads(config["Images"]["blocks"])
         self.score = config["Images"]["score"]
+        self.background = config["Images"]["background"]
         self.rotation = bool(config["Images"]["rotation"])
         self.animation_delay = float(config["Images"]["animation_delay"])
 
         score_name = f"{self.name}_{self.score}"
         sprites.get_sprite(os.path.join(style_path,self.score),score_name)
         self.score_animation = sprites.split_spritesheet(score_name,V(16,16))
+        
+        bg_name = f"{self.name}_{self.background}"
+        sprites.get_sprite(os.path.join(style_path,self.background),bg_name)
+        self.bg_image = bg_name
 
         # Each image file is for a seperate piece, the x axis is for
         # animation and the y axis is for variants in the same figure
