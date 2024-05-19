@@ -42,6 +42,8 @@ class Button:
         self.focused_activated = False
         current_colour = self.base_colour
 
+        # Button activation happens on key release rather than press
+
         # Mouse collision code
         if (self.draw_rect.collidepoint(events.get_mouse_pos(window)) and
             events.mouse_focus):
@@ -81,7 +83,7 @@ class Button:
             if self.focused_pressed:
                 if not self.focused_pressed_last:
                     self.focused_pressed_last = True
-                    self.focused_activated = True
+                    
 
                 self.transition_time = min(self.transition_time_max,
                                         self.transition_time+dt)
@@ -89,7 +91,8 @@ class Button:
                 t = self.transition_time/self.transition_time_max
                 current_colour = self.lerp_colour(t,self.hover_colour,
                                                 self.pressed_colour)
-            else:
+            elif not self.focused_pressed and self.focused_pressed_last:
+                self.focused_activated = True
                 self.focused_pressed_last = False
             
         # No animation if uh um uhhe uhhhhhhhhhhhhhhhhhhhhhhhh
@@ -100,10 +103,6 @@ class Button:
         self.pressed_response(dt,window,fonts,events)
 
         self.focused_pressed = False
-
-        if self.focused_activated:
-            print("keyboard1")
-
         
         # Draw rect
         self.draw_rect = self.rect.copy()
@@ -143,26 +142,28 @@ class Button:
         return f"Button({self.text},{self.rect})"
 
 class OptionButton(Button):
-    def __init__(self,text:str,option_dict:dict,rect:pg.Rect,
+    def __init__(self,text:str,option_list:list,rect:pg.Rect,
                  padding:pg.Vector2 = V(0,0)) -> None:
         
         super().__init__(text,rect,padding)
-        self.option_dict = option_dict
-        self.option_order = list(self.option_dict.keys())
+        self.option_list = option_list
 
         self.original_text = str(self.text)
 
         self.option_select = 0
     
     def pressed_response(self,dt,window,fonts,events):
-        option_full = self.option_dict[self.option_order[self.option_select]]
-        self.text = f"{self.original_text}:{option_full}"
+        selected = self.option_list[self.option_select]
+        self.text = f"{self.original_text}:{selected}"
 
         if self.get_pressed():
             self.next_option()
 
     def next_option(self):
-        self.option_select = int((self.option_select+1)%len(self.option_order))
+        self.option_select = int((self.option_select+1)%len(self.option_list))
+    
+    def select_option(self,object):
+        self.option_select = self.option_list.index(object)
 
         
         
@@ -199,6 +200,7 @@ class Button_List:
 
     def update(self,dt,window,fonts,events):
 
+        # keyboard only controls
         if events.mouse_focus == False:
             
             if self.focused == None:
@@ -211,14 +213,16 @@ class Button_List:
                 self.down()
                 self.dir_held_timer = 0
             
+            # If direction is held for given time, keep going in that
+            # direction instead of just once
             if events.key_held("up") or events.key_held("down"):
                 self.dir_held_timer += dt
 
                 if self.dir_held_timer > self.dir_held_max:
                     self.dir_held_timer = self.dir_held_skip
-                    if events.held("up"):
+                    if events.key_held("up"):
                         self.up()
-                    elif events.held("down"):
+                    elif events.key_held("down"):
                         self.down()
 
         draw_pos = V(self.pos)    
@@ -240,20 +244,32 @@ class Button_List:
 
             draw_pos += V(0,button.rect.height+(button.padding[1]*2)+self.gap)
 
-    def set_option_btn(self,id,option_dict):
+    def set_option_btn(self,id,option_list,selected=None):
         base_btn = self.button_dict[id]
-        self.button_dict[id] = OptionButton(base_btn.text,option_dict,
+        self.button_dict[id] = OptionButton(base_btn.text,option_list,
                                             base_btn.rect,base_btn.padding)
+        
+        if not selected is None:
+            self.button_dict[id].select_option(selected)
+        
     
     def get_pressed(self):
         for (name,button) in self.button_dict.items():
             if button.get_pressed():
                 return name
 
-        return None    
+        return None
+        
     def center_to(self,center_pos):
         self.rect.center = center_pos
         self.pos = V(self.rect.topleft)
+    
+    def change_text(self,id,new_text):
+        button = self.button_dict[id]
+        if type(button) is OptionButton:
+            button.original_text = new_text
+        else:
+            button.text = new_text
 
         
 

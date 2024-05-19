@@ -1,8 +1,8 @@
-#Small module that has functions used for interpolation
+# Small module that has functions used for interpolation
 def lerp(t,a,b):
         return a + (b-a) * t
 
-#Easing functions for use with lerp, gotten from https://easings.net
+# Easing functions for use with lerp, gotten from https://easings.net
 def ease_in_cubic(x):
     return x**3
 

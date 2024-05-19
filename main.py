@@ -1,6 +1,7 @@
 #The main file where everything is run
 
 import pygame as pg
+import configparser, json
 import timer as t
 import sprites as s
 import grid as g
@@ -328,28 +329,125 @@ class Events:
             pos = pos / window.scale
         return pos
 
+class Preferences:
+    def __init__(self) -> None:
+        self.file_name = "user_data/preferences.cfg"
+        self.config = configparser.ConfigParser()
+        self.preferences = {}
 
+        # Functions used to cast types when loading from cfg file
+        self.preferences_types = {
+            "resolution":self.parse_double,
+            "fullscreen":bool,
+            "master_vol":int,
+            "music_vol":int,
+            "fx_vol":int
+            }
+
+        self.start()
+    
+    def start(self):
+        self.read()
+
+    def parse_double(self,string):
+        """Parses a list/tuple of two integers"""
+        split_up = string.strip("()[]").split(", ")
+        map(lambda x : int(x),split_up)
+
+        return split_up
+    
+    def parse_string_list(self,string):
+        return string.strip("()[]").split(", ")
+
+    def defaults(self):
+        """Set preferences to default values"""
+        self.preferences = {
+            "resolution":list[pg.display.list_modes()[0]],
+            "fullscreen":True,
+            "master_vol":70,
+            "music_vol":100,
+            "fx_vol":100
+            }
+
+    def read(self):
+        """Loads preferences from preferences.cfg"""
+
+        # Check file exists/is valid
+        try:
+            self.config.read(self.file_name)
+            self.preferences = dict(self.config["Preferences"])
+            print(self.preferences)
+            for (k,v) in self.preferences.items():
+                type_cast = self.preferences_types[k]
+                self.preferences[k] = type_cast(v)
+        except Exception as error:
+            print("Invalid/Missing preferences file, writing defaults")
+            print(error)
+            self.defaults()
+            self.write()
+        
+
+    def write(self):
+        """Writes current preferences to preferences.cfg"""
+        format_preferences = dict(self.preferences)
+        for (k,v) in format_preferences.items():
+            format_preferences[k] = str(v)
+        
+        self.config.read(self.file_name)
+        self.config["Preferences"] = format_preferences
+        with open(self.file_name,"w") as config_file:
+            self.config.write(config_file)
+        config_file.close()
+
+class Keybinds(Preferences):
+    def __init__(self) -> None:
+        super().__init__()
+        self.file_name = "user_data/preferences.cfg"
+    
+    def start(self):
+        pass
+
+    
 
 class Scenes:
     def __init__(self) -> None:
         self.scenes = {"main_menu":self.main_menu,
-                       "game":self.game
+                       "game":self.game,
+                       "options":self.options,
                        }
         self.current_scene = "main_menu"
 
         self.grid = g.Grid(window,styles)
 
-        self.b1 = ui.Button("a fuckin button smh",
-                            pg.Rect(10,10,50,9*5),
-                            V(5.5))
-        
         self.menu_buttons = ui.Button_List({"play":"play",
                                             "options":"options",
                                             "credits":"credits",
-                                            "quit":"quit"},
-                                           pg.Rect(0,0,150,100),
+                                            "quit":"quit game"},
+                                           pg.Rect(0,0,180,100),
                                            5)
         self.menu_buttons.center_to(window.game_dims/2)
+
+        self.option_buttons = ui.Button_List({"resolution":"resolution",
+                                              "fullscreen":"fullscreen",
+                                              "master":"master volume",
+                                              "music":"music volume",
+                                              "fx":"fx volume",
+                                              "keybinds":"change keybinds",
+                                              "apply":"apply changes",
+                                              "back":"go back"},
+                                              pg.Rect(0,0,180,100),5)
+        self.option_buttons.center_to(window.game_dims/2)
+        self.option_buttons.set_option_btn("resolution",
+                                           pg.display.list_modes())
+        self.option_buttons.set_option_btn("fullscreen",
+                                           [True,False])
+        self.option_buttons.set_option_btn("master",
+                                           list(range(0,101,10)))
+        self.option_buttons.set_option_btn("music",
+                                           list(range(0,101,10)))
+        self.option_buttons.set_option_btn("fx",
+                                           list(range(0,101,10)))
+
 
     def game(self,dt,window,styles,events,sprites,fonts):
         self.grid.update(dt,window,styles,events,sprites,fonts)
@@ -360,8 +458,20 @@ class Scenes:
         match self.menu_buttons.get_pressed():
             case "play":
                 self.current_scene = "game"
+            case "options":
+                self.current_scene = "options"
+            case "quit":
+                quit()
+    
+    def options(self,dt,window,styles,events,sprites,fonts):
+        self.option_buttons.update(dt,window,fonts,events)
 
-
+        match self.option_buttons.get_pressed():
+            case "back":
+                self.current_scene = "main_menu"
+            case "keybinds":
+                pass
+                # self.current_scene = "keybinds"
 
     def update(self,dt,window,styles,events,sprites,fonts):
         self.scenes[self.current_scene](dt,window,styles,events,sprites,fonts)
@@ -373,6 +483,7 @@ pg.init()
 window = Window()
 events = Events()
 timer = t.Timers()
+preferences = Preferences()
 
 sprites = s.Sprites()
 styles = s.Styles(sprites)
