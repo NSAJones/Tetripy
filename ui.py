@@ -34,8 +34,12 @@ class Button:
         rgb_2 =  V3(colour2.r,colour2.g,colour2.b)
         rgb = easing.lerp(t,rgb_1,rgb_2)
         
+        # Set arguments to int
+        arguments = [*rgb,alpha]
+        for i,v in enumerate(arguments):
+            arguments[i] = int(v)
 
-        return pg.Color(*rgb,alpha)
+        return pg.Color(*arguments)
 
     def update(self,dt,window,fonts,events):
         self.activated = False
